@@ -13,8 +13,36 @@ export const createCategory = async (req, res) => {
 };
 export const getCategories = async (req, res) => {
     try {
-        const categories = await Category.find({});
-        res.status(200).json(categories);
+
+        const page = parseInt(req.query.page) || 1;
+
+        const limit = parseInt(req.query.limit) || 8;
+        const skip = (page - 1) * limit;
+
+        const search = req.query.search || "";
+        const query = search ? { name: { $regex: search, $options: "i" } }
+            : {};
+
+        const categories = await Category.find(query)
+            .select("name")
+            .select("description")
+            .skip(skip)
+            .limit(limit)
+            .sort({ name: 1 });
+
+        const totalCategories = await Category.countDocuments(query);
+        const totalPages = Math.ceil(totalCategories / limit);
+
+        res.status(200).json({
+            success: true,
+            totalCategories,
+            totalPages,
+            currentPage: page,
+            limit,
+            data: categories,
+        })
+
+
     } catch (error) {
         res.status(500).json({ message: "Error fetching categories", error });
     }
